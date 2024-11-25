@@ -6,9 +6,6 @@
  */
 
 #include "Pixel.h"
-/* FIXME remove in prod, comes from Pixel.h */
-#include <stdint.h>
-#include <unistd.h>
 
 #define REG_BITWIDTH 8
 
@@ -26,21 +23,49 @@ volatile uint8_t dots[8][8][3]={0};
 
 enum Colors
 {
-	RED,
-	GREEN,
 	BLUE,
+	GREEN,
+	RED,
 };
 
 //Change value of one pixel at led matrix. This function is only used for changing values of dots array
 void SetPixel(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 {
-
 	//TODO: invert Y-axis quite easily with 7-y
-	dots[x][7-y][RED] = r;
-	dots[x][7-y][GREEN] = g;
-	dots[x][7-y][BLUE] = b;
+	dots[x][y][BLUE] = b;
+	dots[x][y][GREEN] = g;
+	dots[x][y][RED] = r;
 }
 
+
+//Put new data to led matrix. Hint: This function is supposed to send 24-bytes and parameter x is for channel x-coordinate.
+// FIXME Produces weird colors when there should be no colors at all :DD
+
+
+void run(unsigned char x)
+{
+	/* Set LAT and SDA high */
+	CONTROL |= 0x12;
+
+	for (uint8_t p = 0; p < 8; ++p)
+	{
+		for (uint8_t c = 0; c < 3; ++c)
+		{
+			for (uint8_t d = 0; d < 8; ++d)
+			{
+				if (dots[x][p][c] & 0x80) {
+					CONTROL |= 0x10;
+				} else {
+					CONTROL &= ~0x10;
+				}
+				CONTROL &= ~0x08;
+				dots[x][p][c] = dots[x][p][c] << 1;
+				CONTROL |= 0x08;
+			}
+		}
+	}
+	latch();
+}
 
 //Latch signal. See colorsshield.pdf or DM163.pdf in project folder on how latching works
 void latch()
@@ -50,47 +75,9 @@ void latch()
 }
 
 
-//Put new data to led matrix. Hint: This function is supposed to send 24-bytes and parameter x is for channel x-coordinate.
-// FIXME Produces weird colors when there should be no colors at all :DD
-void run(uint8_t x)
-{
-	uint8_t color_temp;
-	/* Ensure LAT is low (0) */
-	CONTROL &= ~0x02;
-
-	//Write code that writes data to led matrix driver (8-bit data). Use values from dots array
-	//Hint: use nested loops (loops inside loops)
-	//Hint2: loop iterations are 8,3,8 (pixels,color,8-bitdata)
-	for (uint8_t i = 0; i < 8; ++i) {
-		for (uint8_t j = BLUE; j >= RED; --j) {
-			color_temp = dots[x][i][j];
-			for (uint8_t bit = 0; bit < 8; ++bit) {
-				if ((color_temp & 0x80) == 1) {
-					CONTROL |= 0x80;
-				} else {
-					CONTROL &= ~0x80;
-				}
-				color_temp <<= 1;
-				CONTROL |= 0x2;
-				CONTROL &= ~0x2;
-			}
-		}
-	}
-	latch();
-}
-
 //Set one line (channel) as active, one at a time.
 void open_line(uint8_t x)
 {
-	/* Why not: */
-//	if (0 <= x && x <= 7) {
-//		CHANNEL |= 1<<x;
-//	} else {
-//		CHANNEL &= 0x0;
-//	}
-	/* Performance? */
-
-	/* Instead of: */
 	switch (x) {
 		case 0: {
 			CHANNEL |= 0x01;
@@ -125,7 +112,7 @@ void open_line(uint8_t x)
 			break;
 		}
 		default: {
-			CHANNEL &= 0x0;
+			CHANNEL = 0x0;
 		}
 	}
 }
@@ -133,7 +120,6 @@ void open_line(uint8_t x)
 // Here the setup operations for the LED matrix will be performed
 void setup()
 {
-
 	/* Initialize */
 	CONTROL = 0x0;
 	CHANNEL = 0x0;
@@ -150,10 +136,12 @@ void setup()
 	/* Fill LED driver for (max) brightness. */
 	for (uint8_t i = 0; i < 144; ++i) {
 		/* Toggle (tick) CLK on and off */
-		CONTROL &= ~0x08;
 		CONTROL |= 0x08;
+		CONTROL &= ~0x08;
 	}
 
 	/* Set sb to write to serial data */
-	CONTROL |= 0x02;
+	CONTROL |= 0x04;
 }
+
+
