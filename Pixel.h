@@ -1,23 +1,8 @@
-/*
- * Pixel.h
- *
- *  Created on: ------
- *      Author: ------
- */
-
 #ifndef PIXEL_H_
 #define PIXEL_H_
 
-#include "platform.h"
-#include "xil_printf.h"
-#include "sleep.h"
-#include "xgpiops.h"
-#include "xttcps.h"
-#include "xscugic.h"
-#include "xparameters.h"
-
-
-
+#include <stdlib.h>
+#include <stdint.h>
 
 void setup();
 void SetPixel(uint8_t x,uint8_t y, uint8_t r, uint8_t g, uint8_t b);

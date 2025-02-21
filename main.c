@@ -47,165 +47,169 @@
 
 // Main program for exercise
 
-//****************************************************
-//By default, every output used in this exercise is 0
-//****************************************************
 #include <stdio.h>
+#include <time.h>
+#include <math.h>
 #include "platform.h"
-#include "xil_printf.h"
-#include "sleep.h"
-#include "xgpiops.h"
-#include "xttcps.h"
-#include "xscugic.h"
-#include "xparameters.h"
+
+// Student includes
 #include "Pixel.h"
-#include "Interrupt_setup.h"
+#include "draw.h"
+#include "gamelogic.h"
+#include "main.h"
 
-//********************************************************************
-//***************TRY TO READ COMMENTS*********************************
-//********************************************************************
-
-//***Hint: Use sleep(x)  or usleep(x) if you want some delays.****
-//***To call assembler code found in blinker.S, call it using: blinker();***
-
-
-//Comment this if you want to disable all interrupts
-#define enable_interrupts
-
-
+// #define enable_interrupts
 
 
 /***************************************************************************************
-Name:
-Student number:
-
-Name:
-Student number:
-
-Name:
-Student number:
+Name: Erkka Lehtoranta
+Name: Veikka Laaksoviita
 
 Tick boxes that you have coded
 
 Led-matrix driver		Game		    Assembler
-	[]					[]					[]
+	[X]					[X]					[]
 
-Brief description:
+Brief description: A game where you shoot a pixel alien out of the sky in the name
+of liberty and freedom.
+
+Usage:
+	Buttons:	Move left	BTN2
+				Move right	BTN0
+				Shoot		BTN3
+	UI:
+		Your ship:	Blue ship on the bottom
+		Alien:		Green dot on the top
+		Ammo left:	Red dots on the right
+		Alien HP:	Cyan dots on the left
+	Playing:
+		Win: Hit the alien enough, depleting its hitpoints.
+		Lose: Miss the alien enough, running out of ammo.
 
 *****************************************************************************************/
 
 
-
-
 int main()
 {
-	//**DO NOT REMOVE THIS****
-	    init_platform();
-	//************************
-
-
+	init_platform();
 #ifdef	enable_interrupts
-	    init_interrupts();
+	init_interrupts();
 #endif
 
+	reset_game();
 
-	    //setup screen
-	    setup();
+	// Setup screen
+	setup();
 
-	    unsigned char x = 0;
-	    SetPixel(x,6,0,255,0);
-	    SetPixel(x,2,255,0,0);
-	    SetPixel(x,5,0,0,255);
-	    open_line(x);
-	    run(x);
+	Xil_ExceptionEnable();
 
+	// Try to avoid writing any code in the main loop.
+	while(1){}
 
-	    Xil_ExceptionEnable();
-
-
-
-	    //Try to avoid writing any code in the main loop.
-		while(1){
-
-
-		}
-
-
-		cleanup_platform();
-		return 0;
+	cleanup_platform();
+	return 0;
 }
 
 
+uint8_t current_open_channel = 0;
 //Timer interrupt handler for led matrix update. Frequency is 800 Hz
 void TickHandler(void *CallBackRef){
-	//Don't remove this
 	uint32_t StatusEvent;
 
-	//exceptions must be disabled when updating screen
+	// exceptions must be disabled when updating screen
 	Xil_ExceptionDisable();
 
+	open_line(42); // Magic number that goes to default case (zero all)
+	run(current_open_channel);
+	open_line(current_open_channel);
 
+	current_open_channel = current_open_channel == 7 ? 0 : current_open_channel + 1;
 
-	//****Write code here ****
+	draw_alien(&alien);
+	draw_ship(&ship);
+	draw_state(&ship);
+	if (finished) {
+		draw_end(finished);
+	} else {
+		draw_shots(current_shots);
+	}
 
-
-
-
-
-
-
-	//****END OF OWN CODE*****************
-
-	//*********clear timer interrupt status. DO NOT REMOVE********
+	/**** Template code ****/
+	// clear timer interrupt status
 	StatusEvent = XTtcPs_GetInterruptStatus((XTtcPs *)CallBackRef);
 	XTtcPs_ClearInterruptStatus((XTtcPs *)CallBackRef, StatusEvent);
-	//*************************************************************
-	//enable exceptions
+	// Enable exceptions
 	Xil_ExceptionEnable();
+	/* End of template */
 }
+
 
 
 //Timer interrupt for moving alien, shooting... Frequency is 10 Hz by default
-void TickHandler1(void *CallBackRef){
+void TickHandler1(void *CallBackRef) {
 
 	//Don't remove this
 	uint32_t StatusEvent;
 
-	//****Write code here ****
+	static uint8_t counter = 1;
 
+	// Game state is checked at the start of every tick
+	if (alien.hp <= 0) {
+		finished = WIN;
+	} else if (ship.ammo <= 0) {
+		finished = LOSE;
+	}
 
+	if (!finished) {
+		++counter;
+		if (counter % ALIEN_PACE == 0) {
+			move_alien(&alien);
+			counter = 0;
+		}
 
+		for (uint8_t i = 0; i < CURRENT_SHOTS_MAX; ++i) {
+			if (current_shots[i] == NULL) { continue; }
 
+			if (current_shots[i]->y == 0) {
+				detect_collision(&alien, current_shots[i]);
+				--ship.ammo;
+				destroy_shot(&current_shots[i], i);
+			} else {
+				current_shots[i]->y -= 1;
+			}
+		}
+	}
 
-	//****END OF OWN CODE*****************
+	//******* Template code ********
 	//clear timer interrupt status. DO NOT REMOVE
 	StatusEvent = XTtcPs_GetInterruptStatus((XTtcPs *)CallBackRef);
 	XTtcPs_ClearInterruptStatus((XTtcPs *)CallBackRef, StatusEvent);
 
 }
 
-
 //Interrupt handler for switches and buttons.
 //Reading Status will tell which button or switch was used
 //Bank information is useless in this exercise
 void ButtonHandler(void *CallBackRef, u32 Bank, u32 Status){
-	//****Write code here ****
-
-	//Hint: Status==0x01 ->btn0, Status==0x02->btn1, Status==0x04->btn2, Status==0x08-> btn3, Status==0x10->SW0, Status==0x20 -> SW1
 
 	//If true, btn0 was used to trigger interrupt
-	if(Status==0x01){
-
+	if (!finished) {
+		if (Status & 0x05) {
+			if (Status & 0x01) {
+				move_ship(RIGHT); // Move right
+			}
+			if (Status & 0x04) {
+				move_ship(LEFT); // Move left
+			}
+		}
+		if (Status & 0x08) {
+			shoot();
+		}
 	}
 
-
-
-
-
-
-
-
-	//****END OF OWN CODE*****************
+	if (Status & 0x10) {
+		reset_game();
+	}
 }
 
 
