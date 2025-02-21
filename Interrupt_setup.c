@@ -1,10 +1,6 @@
-/*
- * Interrupt_setup.c
- *
- *  Created on: -----
- *      Author: -----
- */
-
+//
+// Template code created by course staff
+//
 //**DO NOT TOUCH ANYTHING HERE!!!!********
 #include "Interrupt_setup.h"
 

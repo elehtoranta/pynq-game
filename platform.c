@@ -30,6 +30,9 @@
 *
 ******************************************************************************/
 
+//
+// Template included by the course staff
+//
 #include "xparameters.h"
 #include "xil_cache.h"
 

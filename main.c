@@ -88,7 +88,7 @@ Usage:
 
 *****************************************************************************************/
 
-
+// Template code from course staff
 int main()
 {
 	init_platform();
@@ -96,7 +96,7 @@ int main()
 	init_interrupts();
 #endif
 
-	reset_game();
+	reset_game(); // Author code
 
 	// Setup screen
 	setup();
@@ -109,6 +109,7 @@ int main()
 	cleanup_platform();
 	return 0;
 }
+// End of template
 
 
 uint8_t current_open_channel = 0;
@@ -117,7 +118,7 @@ void TickHandler(void *CallBackRef){
 	uint32_t StatusEvent;
 
 	// exceptions must be disabled when updating screen
-	Xil_ExceptionDisable();
+	Xil_ExceptionDisable(); // Template code from course staff
 
 	open_line(42); // Magic number that goes to default case (zero all)
 	run(current_open_channel);
@@ -134,7 +135,7 @@ void TickHandler(void *CallBackRef){
 		draw_shots(current_shots);
 	}
 
-	/**** Template code ****/
+	/**** Template code from course staff ****/
 	// clear timer interrupt status
 	StatusEvent = XTtcPs_GetInterruptStatus((XTtcPs *)CallBackRef);
 	XTtcPs_ClearInterruptStatus((XTtcPs *)CallBackRef, StatusEvent);
@@ -180,16 +181,15 @@ void TickHandler1(void *CallBackRef) {
 		}
 	}
 
-	//******* Template code ********
+	/******* Template code from course staff ********/
 	//clear timer interrupt status. DO NOT REMOVE
 	StatusEvent = XTtcPs_GetInterruptStatus((XTtcPs *)CallBackRef);
 	XTtcPs_ClearInterruptStatus((XTtcPs *)CallBackRef, StatusEvent);
-
+	/******* End of template *********/
 }
 
-//Interrupt handler for switches and buttons.
-//Reading Status will tell which button or switch was used
-//Bank information is useless in this exercise
+// Interrupt handler for switches and buttons.
+// Reading Status will tell which button or switch was used
 void ButtonHandler(void *CallBackRef, u32 Bank, u32 Status){
 
 	//If true, btn0 was used to trigger interrupt
